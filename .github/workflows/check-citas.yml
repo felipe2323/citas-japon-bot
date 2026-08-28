@@ -8,8 +8,6 @@ on:
 jobs:
   revisar:
     runs-on: ubuntu-latest
-    container:
-      image: mcr.microsoft.com/playwright:v1.62.1-jammy
     steps:
       - uses: actions/checkout@v4
 
@@ -20,6 +18,21 @@ jobs:
 
       - name: Instalar dependencias
         run: npm install
+
+      - name: Cache del navegador de Playwright
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Instalar navegador de Playwright (sin cache)
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+
+      - name: Instalar solo dependencias del sistema (con cache de navegador)
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
 
       - name: Correr el chequeo
         env:
