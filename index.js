@@ -76,7 +76,7 @@ async function clickNextMonth(page) {
     page.click('a.next01.js_change_date'),
   ]);
   await resp.finished();
-  await page.waitForTimeout(300);
+  await page.waitForTimeout(150);
 }
 
 async function extractAvailableDays(page) {
@@ -118,22 +118,39 @@ async function extractAvailableDays(page) {
   const page = await browser.newPage();
   const disponibles = [];
 
+  // No necesitamos ver imagenes/fuentes/videos para nada (la deteccion lee el
+  // atributo src del HTML, no el contenido real de la imagen), asi que las
+  // bloqueamos para que la pagina cargue mas rapido. Dejamos CSS intacto
+  // porque el layout/visibilidad de los botones depende de el para que
+  // Playwright pueda hacer click correctamente.
+  await page.route('**/*', (route) => {
+    const tipo = route.request().resourceType();
+    if (tipo === 'image' || tipo === 'media' || tipo === 'font') {
+      return route.abort();
+    }
+    return route.continue();
+  });
+
   try {
-    await page.goto(URL, { waitUntil: 'networkidle', timeout: 60000 });
+    // domcontentloaded + esperar el select puntual es mucho mas rapido y
+    // confiable que 'networkidle' (que puede quedarse esperando de mas por
+    // trackers/beacons que nunca terminan de "estar quietos").
+    await page.goto(URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    await page.waitForSelector('#stock', { state: 'visible', timeout: 30000 });
 
     // fijar numero de solicitudes en 2
     await Promise.all([
       page.waitForResponse((r) => r.url().includes('/ajax/reservations/calendar') || r.url().includes('interval-stock'), { timeout: 15000 }).catch(() => {}),
       page.selectOption('#stock', STOCK),
     ]);
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(250);
 
     // cambiar a vista mensual
     await Promise.all([
       page.waitForResponse((r) => r.url().includes('/ajax/reservations/calendar') && r.request().method() === 'POST'),
       page.click('a.js_change[data-value="month"]'),
     ]);
-    await page.waitForTimeout(300);
+    await page.waitForTimeout(150);
 
     let current = await getCurrentYearMonth(page);
     log(`Mes actual mostrado: ${current.year}-${current.month}`);
