@@ -1,8 +1,11 @@
 name: Chequeo de citas Japon
 
+# El disparo automatico lo hace un cron externo (cron-job.org) llamando a
+# la API de GitHub, porque el 'schedule:' nativo de GitHub Actions nunca
+# llego a dispararse en este repo (workflow_dispatch si funciona siempre).
+# Por eso aqui solo queda workflow_dispatch: si algun dia se reactivara el
+# schedule nativo, tendriamos corridas duplicadas y notificaciones dobles.
 on:
-  schedule:
-    - cron: '7,37 * * * *'
   workflow_dispatch: {}
 
 jobs:

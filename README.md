@@ -9,8 +9,9 @@ un día realmente disponible.
 ## Cómo funciona
 
 - Corre en GitHub Actions, no necesita tu computador encendido.
-- Programación: cada hora en punto (`0 * * * *`), definida en
-  `.github/workflows/citas-visa-japon.yml`.
+- Programación: un cron externo (cron-job.org) llama cada hora a la API de
+  GitHub para disparar el workflow. El `schedule:` nativo de GitHub Actions
+  NO se usa porque nunca llegó a dispararse en este repo (ver más abajo).
 - Abre el calendario con un navegador real (Playwright, en modo invisible),
   pone "número de solicitudes" en 2, salta directo a septiembre, revisa
   día por día el ícono de cada celda y avanza a octubre.
@@ -67,3 +68,35 @@ invisible, igual que en GitHub Actions.
 
 - https://github.com/felipe2323/citas-japon-bot/actions
 - o `gh run list`.
+
+## Por qué el disparo es externo y no con `schedule:`
+
+El `schedule:` (cron) nativo de GitHub Actions nunca disparó en este repo,
+pese a que todo estaba correcto: ruta `.github/workflows/`, archivo en la
+rama default, YAML válido sin BOM ni CRLF, workflow en estado `active`, y
+`workflow_dispatch` funcionando perfecto decenas de veces.
+
+Se probaron sin éxito: cron en minuto 0, en minuto 7, cada 10 min y cada
+30 min; renombrar el archivo y el workflow para forzar re-registro; y
+cambiar el repo a público. Ninguna funcionó.
+
+Es un problema conocido y sin resolver del lado de GitHub — hay varios
+reportes con síntomas idénticos y sin respuesta oficial:
+- https://github.com/orgs/community/discussions/202034
+- https://github.com/orgs/community/discussions/201436
+- https://github.com/orgs/community/discussions/199267
+
+### Cómo se dispara ahora
+
+Un job en https://cron-job.org hace cada hora:
+
+    POST https://api.github.com/repos/felipe2323/citas-japon-bot/actions/workflows/citas-visa-japon.yml/dispatches
+    Accept: application/vnd.github+json
+    Authorization: Bearer <PAT fine-grained>
+    X-GitHub-Api-Version: 2022-11-28
+    Body: {"ref":"main"}
+
+El token es un **fine-grained PAT** limitado a este único repositorio, con
+un solo permiso: **Actions → Read and write**. Si expira (90 días), el bot
+deja de correr silenciosamente: hay que renovarlo en GitHub y actualizarlo
+en cron-job.org.
