@@ -97,6 +97,13 @@ Un job en https://cron-job.org hace cada hora:
     Body: {"ref":"main"}
 
 El token es un **fine-grained PAT** limitado a este único repositorio, con
-un solo permiso: **Actions → Read and write**. Si expira (90 días), el bot
-deja de correr silenciosamente: hay que renovarlo en GitHub y actualizarlo
-en cron-job.org.
+un solo permiso: **Actions → Read and write** (más `Metadata: Read-only`,
+que GitHub agrega obligatoriamente).
+
+> **IMPORTANTE — el token expira el 27 de septiembre de 2026.**
+> Cuando expire, el bot deja de correr **en silencio**: cron-job.org
+> empezará a recibir `401` y simplemente no habrá corridas, sin ninguna
+> alerta por Telegram. Para renovarlo: generar un PAT nuevo en
+> https://github.com/settings/personal-access-tokens con los mismos
+> permisos, y reemplazar el header `Authorization` en el job de
+> cron-job.org.
