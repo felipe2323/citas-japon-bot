@@ -1,0 +1,9 @@
+node_modules/
+.env
+ultimo-run.log
+diagnostico-mes.png
+diagnostico-mes.html
+fixture-disponible.html
+estado.json
+install.log
+com.citasjapon.bot.plist
