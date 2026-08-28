@@ -138,12 +138,26 @@ async function extractAvailableDays(page) {
     await page.goto(URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
     await page.waitForSelector('#stock', { state: 'visible', timeout: 30000 });
 
-    // fijar numero de solicitudes en 2
-    await Promise.all([
-      page.waitForResponse((r) => r.url().includes('/ajax/reservations/calendar') || r.url().includes('interval-stock'), { timeout: 15000 }).catch(() => {}),
-      page.selectOption('#stock', STOCK),
-    ]);
-    await page.waitForTimeout(250);
+    // fijar numero de solicitudes en 2. No hace falta esperar su propia
+    // llamada de red (confirmado en las pruebas de diagnostico): el siguiente
+    // paso manda el formulario completo, que ya incluye este valor puesto en
+    // pantalla, sin importar si esta llamada especifica termino o no.
+    await page.selectOption('#stock', STOCK);
+    await page.waitForTimeout(150);
+
+    // Adelantamos el campo de fecha oculto al primer mes objetivo ANTES de
+    // cambiar a vista mensual, para aterrizar directo ahi en vez de partir
+    // del mes actual y tener que dar "siguiente" para llegar. El boton de
+    // vista mensual no pisa este campo (solo lo hacen los links que navegan
+    // fecha por fecha), asi que es seguro. Si por algo no funcionara, el
+    // bucle de abajo igual detecta en que mes quedamos y sigue avanzando
+    // normalmente, asi que no hay riesgo de romper nada.
+    const primerObjetivo = TARGET_MONTHS[0];
+    const fechaInicial = `${primerObjetivo.year}/${String(primerObjetivo.month).padStart(2, '0')}/01`;
+    await page.evaluate((fecha) => {
+      const el = document.querySelector('#sel_date');
+      if (el) el.value = fecha;
+    }, fechaInicial);
 
     // cambiar a vista mensual
     await Promise.all([
