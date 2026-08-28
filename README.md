@@ -10,7 +10,7 @@ un día realmente disponible.
 
 - Corre en GitHub Actions, no necesita tu computador encendido.
 - Programación: cada hora en punto (`0 * * * *`), definida en
-  `.github/workflows/check-citas.yml`.
+  `.github/workflows/citas-visa-japon.yml`.
 - Abre el calendario con un navegador real (Playwright, en modo invisible),
   pone "número de solicitudes" en 2, salta directo a septiembre, revisa
   día por día el ícono de cada celda y avanza a octubre.
@@ -26,7 +26,7 @@ un día realmente disponible.
 ## Archivos principales
 
 - `index.js` — el script completo (navegación, detección, Telegram).
-- `.github/workflows/check-citas.yml` — la programación en GitHub Actions.
+- `.github/workflows/citas-visa-japon.yml` — la programación en GitHub Actions.
 - `.env` — variables locales (token/chat de Telegram, modo headless).
   No se sube a git.
 - `test-deteccion.js` + `fixture-disponible.html` — prueba local de la
@@ -60,8 +60,8 @@ invisible, igual que en GitHub Actions.
 
 ## Correrlo manualmente sin esperar la hora
 
-- Desde GitHub: pestaña **Actions** → "Revisar citas de visa" → **Run workflow**.
-- Desde terminal: `gh workflow run check-citas.yml`.
+- Desde GitHub: pestaña **Actions** → "Chequeo de citas Japon" → **Run workflow**.
+- Desde terminal: `gh workflow run citas-visa-japon.yml`.
 
 ## Ver corridas pasadas
 
