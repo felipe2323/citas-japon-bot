@@ -70,13 +70,44 @@ async function getCurrentYearMonth(page) {
   };
 }
 
+// El sitio de la embajada a veces responde lento (el bot lo consulta cada
+// ~10 min), y un solo timeout de 30s tumbaba todo el chequeo. Reintentamos
+// unas veces con espera antes de darlo por fallido de verdad.
+async function clickYEsperarCalendario(page, selector, intentos = 3) {
+  for (let intento = 1; intento <= intentos; intento++) {
+    try {
+      const [resp] = await Promise.all([
+        page.waitForResponse((r) => r.url().includes('/ajax/reservations/calendar') && r.request().method() === 'POST', { timeout: 30000 }),
+        page.click(selector),
+      ]);
+      await resp.finished();
+      await page.waitForTimeout(150);
+      return;
+    } catch (err) {
+      if (intento === intentos) throw err;
+      log(`AVISO: timeout esperando respuesta del calendario (intento ${intento}/${intentos}), reintentando...`);
+      await page.waitForTimeout(3000);
+    }
+  }
+}
+
 async function clickNextMonth(page) {
-  const [resp] = await Promise.all([
-    page.waitForResponse((r) => r.url().includes('/ajax/reservations/calendar') && r.request().method() === 'POST'),
-    page.click('a.next01.js_change_date'),
-  ]);
-  await resp.finished();
-  await page.waitForTimeout(150);
+  return clickYEsperarCalendario(page, 'a.next01.js_change_date');
+}
+
+// Si la tabla del mes viene vacia (0 dias revisados), casi siempre es que el
+// DOM todavia no habia terminado de pintarse cuando leimos, no que el mes
+// realmente no tenga dias. Reintentamos antes de reportarlo como tal.
+async function extractAvailableDaysConReintento(page, intentos = 3) {
+  let days = [];
+  for (let intento = 1; intento <= intentos; intento++) {
+    days = await extractAvailableDays(page);
+    if (days.length > 0) return days;
+    if (intento === intentos) return days;
+    log(`AVISO: la tabla del calendario vino vacia (intento ${intento}/${intentos}), esperando y reintentando...`);
+    await page.waitForTimeout(2000);
+  }
+  return days;
 }
 
 async function extractAvailableDays(page) {
@@ -160,11 +191,7 @@ async function extractAvailableDays(page) {
     }, fechaInicial);
 
     // cambiar a vista mensual
-    await Promise.all([
-      page.waitForResponse((r) => r.url().includes('/ajax/reservations/calendar') && r.request().method() === 'POST'),
-      page.click('a.js_change[data-value="month"]'),
-    ]);
-    await page.waitForTimeout(150);
+    await clickYEsperarCalendario(page, 'a.js_change[data-value="month"]');
 
     let current = await getCurrentYearMonth(page);
     log(`Mes actual mostrado: ${current.year}-${current.month}`);
@@ -183,7 +210,7 @@ async function extractAvailableDays(page) {
       }
 
       if (target) {
-        const days = await extractAvailableDays(page);
+        const days = await extractAvailableDaysConReintento(page);
         const dispEsteMes = days.filter((d) => d.status === 'disponible' || d.status.startsWith('revisar_'));
         log(`${current.year}-${String(current.month).padStart(2, '0')}: ${dispEsteMes.length} dia(s) disponible(s) de ${days.length} revisados.`);
         for (const d of dispEsteMes) {
