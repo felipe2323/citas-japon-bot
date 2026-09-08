@@ -112,13 +112,6 @@ async function extractAvailableDays(page) {
 
 (async () => {
   log('=== Iniciando chequeo ===');
-  // Aviso de arranque: confirma que el workflow SI corrio (util para notar
-  // silenciosamente si GitHub Actions dejara de ejecutar el cron). Es un solo
-  // request HTTP breve, no afecta el tiempo total de forma perceptible. Si
-  // falla (ej. problema de red puntual), no debe tumbar el chequeo completo.
-  await sendTelegram('Iniciando chequeo de citas...').catch((err) => {
-    log('AVISO: fallo el mensaje de inicio por Telegram: ' + err.message);
-  });
   const headless = process.env.HEADLESS !== 'false';
   log(`Modo: ${headless ? 'invisible (headless)' : 'con ventana visible'}`);
   const browser = await chromium.launch({ headless, slowMo: headless ? 0 : 400 });
@@ -229,7 +222,10 @@ async function extractAvailableDays(page) {
   }
 
   log('=== Chequeo terminado ===\n');
-})().catch((err) => {
+})().catch(async (err) => {
   log('ERROR FATAL: ' + (err && err.stack ? err.stack : err));
+  await sendTelegram(`ERROR: el bot de citas fallo.\n${err && err.message ? err.message : err}`).catch((notifyErr) => {
+    log('AVISO: fallo el mensaje de error por Telegram: ' + notifyErr.message);
+  });
   process.exit(1);
 });
