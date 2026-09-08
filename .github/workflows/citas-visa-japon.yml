@@ -11,6 +11,12 @@ on:
 jobs:
   revisar:
     runs-on: ubuntu-latest
+    # Red de seguridad: una corrida normal toma ~1 min. Sin esto el default de
+    # GitHub son 6 HORAS, y una corrida atascada se comeria cientos de minutos
+    # de la cuota. El tope va por encima del peor caso del script (que reintenta
+    # con timeouts largos) para que el script alcance a fallar solo y mandar el
+    # aviso por Telegram; si GitHub mata el job, ese aviso no se envia.
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
 

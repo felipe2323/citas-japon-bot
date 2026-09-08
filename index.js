@@ -70,14 +70,35 @@ async function getCurrentYearMonth(page) {
   };
 }
 
-// El sitio de la embajada a veces responde lento (el bot lo consulta cada
-// ~10 min), y un solo timeout de 30s tumbaba todo el chequeo. Reintentamos
-// unas veces con espera antes de darlo por fallido de verdad.
+// El servidor de la embajada por rachas se demora MUCHO en responder: medido
+// con un curl suelto desde una conexion residencial (sin bot de por medio) el
+// HTML inicial tardo 25.8s en llegar, con HTTP 200 y contenido correcto. O sea
+// la lentitud es del sitio, no de nuestra frecuencia de consulta. Por eso los
+// timeouts aqui son generosos: con 30s fallabamos por segundos de margen.
+async function abrirCalendario(page, intentos = 2) {
+  for (let intento = 1; intento <= intentos; intento++) {
+    try {
+      // domcontentloaded + esperar el select puntual es mucho mas rapido y
+      // confiable que 'networkidle' (que puede quedarse esperando de mas por
+      // trackers/beacons que nunca terminan de "estar quietos").
+      await page.goto(URL, { waitUntil: 'domcontentloaded', timeout: 90000 });
+      await page.waitForSelector('#stock', { state: 'visible', timeout: 60000 });
+      return;
+    } catch (err) {
+      if (intento === intentos) throw err;
+      log(`AVISO: el sitio no cargo el formulario a tiempo (intento ${intento}/${intentos}), reintentando...`);
+      await page.waitForTimeout(5000);
+    }
+  }
+}
+
+// Mismo motivo que arriba: un solo timeout corto tumbaba todo el chequeo.
+// Reintentamos unas veces con espera antes de darlo por fallido de verdad.
 async function clickYEsperarCalendario(page, selector, intentos = 3) {
   for (let intento = 1; intento <= intentos; intento++) {
     try {
       const [resp] = await Promise.all([
-        page.waitForResponse((r) => r.url().includes('/ajax/reservations/calendar') && r.request().method() === 'POST', { timeout: 30000 }),
+        page.waitForResponse((r) => r.url().includes('/ajax/reservations/calendar') && r.request().method() === 'POST', { timeout: 60000 }),
         page.click(selector),
       ]);
       await resp.finished();
@@ -163,11 +184,7 @@ async function extractAvailableDays(page) {
   });
 
   try {
-    // domcontentloaded + esperar el select puntual es mucho mas rapido y
-    // confiable que 'networkidle' (que puede quedarse esperando de mas por
-    // trackers/beacons que nunca terminan de "estar quietos").
-    await page.goto(URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
-    await page.waitForSelector('#stock', { state: 'visible', timeout: 30000 });
+    await abrirCalendario(page);
 
     // fijar numero de solicitudes en 2. No hace falta esperar su propia
     // llamada de red (confirmado en las pruebas de diagnostico): el siguiente
