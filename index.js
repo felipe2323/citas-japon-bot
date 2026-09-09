@@ -99,7 +99,10 @@ async function clickYEsperarCalendario(page, selector, intentos = 3) {
     try {
       const [resp] = await Promise.all([
         page.waitForResponse((r) => r.url().includes('/ajax/reservations/calendar') && r.request().method() === 'POST', { timeout: 60000 }),
-        page.click(selector),
+        // El timeout explicito importa: por default page.click() espera solo
+        // 30s a que el elemento sea clickeable, y con el sitio lento ese era
+        // el que estaba tumbando el chequeo (no el waitForResponse de arriba).
+        page.click(selector, { timeout: 60000 }),
       ]);
       await resp.finished();
       await page.waitForTimeout(150);
